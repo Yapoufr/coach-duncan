@@ -145,6 +145,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;ba
 .timer-controls{display:flex;gap:10px;margin-top:16px;}
 /* HYDRATATION */
 .water-row{display:flex;gap:8px;justify-content:center;margin:10px 0;flex-wrap:wrap;}
+.coach-card{background:linear-gradient(135deg,rgba(108,99,255,.18) 0%,rgba(78,205,196,.10) 100%);border:1px solid rgba(108,99,255,.3);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
+.coach-header{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.coach-avatar{width:36px;height:36px;border-radius:50%;background:rgba(108,99,255,.25);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.coach-title{font-size:13px;font-weight:700;color:#a09aff;text-transform:uppercase;letter-spacing:.5px;}
+.coach-msg{font-size:15px;line-height:1.6;color:var(--text);}
+.coach-action-btn{display:inline-flex;align-items:center;gap:6px;background:rgba(108,99,255,.25);border:1px solid rgba(108,99,255,.4);border-radius:var(--radius-sm);padding:8px 14px;font-size:13px;font-weight:600;color:#a09aff;margin-top:10px;cursor:pointer;}
 .water-cup{width:40px;height:40px;border-radius:50%;border:2px solid var(--border);background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:all .15s;}
 .water-cup.filled{background:rgba(78,205,196,.18);border-color:var(--accent2);}
 .water-big{font-size:40px;font-weight:800;color:var(--accent2);text-align:center;line-height:1;}
@@ -188,6 +194,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;ba
 
     <!-- ACCUEIL -->
     <div class="page active" id="page-accueil">
+      <div class="coach-card" id="coach-card">
+        <div class="coach-header">
+          <div class="coach-avatar">🧠</div>
+          <div class="coach-title">Ton coach</div>
+        </div>
+        <div class="coach-msg" id="coach-msg">Chargement...</div>
+        <div id="coach-action"></div>
+      </div>
       <div class="metrics">
         <div class="metric">
           <div class="metric-label">Poids actuel</div>
@@ -1131,7 +1145,108 @@ function showFringale(){document.getElementById('fringale-overlay').classList.ad
 function hideFringale(e){if(!e||e.target===document.getElementById('fringale-overlay')||!e.target){document.getElementById('fringale-overlay').classList.remove('active');}}
 
 // ── HOME ──────────────────────────────────────────────────────
+// ── COACH INTELLIGENT ─────────────────────────────────────────
+function getCoachAdvice(){
+  const now=new Date();
+  const hour=now.getHours();
+  const day=now.getDay(); // 0=dim,1=lun...6=sam
+  const repDone=repasState.filter(Boolean).length;
+  const exoDone=exoState.filter(Boolean).length;
+  const target=getWaterTarget();
+  const seanceDay=[1,3,5].includes(day);
+  const todayFr=now.toLocaleDateString('fr-FR');
+
+  // 1. Nuit profonde — priorité absolue (sommeil)
+  if(hour>=0 && hour<5){
+    return {msg:"Il est tard. Si t'as pas faim, cuisine fermée — essaie de tenir un peu pour recaler ton sommeil. Thé vert + jeu PC plutôt que TikTok si l'ennui pointe. 🌙",action:{label:'🚨 J\'ai une fringale',fn:'showFringale'}};
+  }
+
+  // 2. Humeur du jour difficile
+  const todayMood=journalHistory.find(j=>j.date.startsWith(todayFr));
+  if(todayMood && todayMood.mood<=2){
+    return {msg:"T'as noté une humeur difficile aujourd'hui. C'est ok, ça fait partie du parcours. Une seule petite chose suffit — un verre d'eau, ou cocher un repas. Pas besoin de plus.",action:{label:'💙 Voir le Boost',page:'motivation'}};
+  }
+
+  // 3. Matin, aucun repas encore
+  if(hour>=6 && hour<12 && repDone===0){
+    return {msg:"Bonjour ! Pense à manger dans les 2h après ton réveil — ça stabilise tout le reste de la journée.",action:{label:'🍳 Voir mes repas',page:'nutrition'}};
+  }
+
+  // 4. Jour de séance, pas commencée, après-midi
+  if(seanceDay && exoDone===0 && hour>=12){
+    return {msg:"Aujourd'hui c'est jour de séance (Phase 1). 6 exercices, ~25 min, zéro matériel. Même sans envie — juste l'échauffement pour démarrer.",action:{label:'💪 Lancer la séance',page:'entrainement'}};
+  }
+
+  // 5. Hydratation en retard par rapport à l'heure
+  const expectedPct=Math.min(1,Math.max(0,(hour-8)/15));
+  if(hour>=10 && (waterMl/target) < expectedPct-0.25){
+    return {msg:"T'es un peu en retard sur l'eau ("+(waterMl/1000).toFixed(1)+"L / "+(target/1000).toFixed(1)+"L). Un verre maintenant, ça coûte rien.",action:{label:'💧 Ajouter de l\'eau',page:'hydratation'}};
+  }
+
+  // 6. Stock bas sur plusieurs aliments
+  const bas=inventaire.filter(isLow);
+  if(bas.length>=3){
+    return {msg:"Ton stock commence à manquer sur plusieurs aliments ("+bas.slice(0,3).map(i=>i.nom).join(', ')+"...). Check la liste de courses pour la prochaine fois.",action:{label:'🛒 Voir les courses',page:'courses'}};
+  }
+
+  // 7. Pas encore de pesée
+  if(poidsHistory.length===0){
+    return {msg:"T'as pas encore enregistré de pesée. Pèse-toi demain matin à jeun pour démarrer le suivi — c'est le vrai repère sur la durée.",action:{label:'⚖️ Ajouter mon poids',page:'poids'}};
+  }
+
+  // 8. Tendance de poids
+  if(poidsHistory.length>=2){
+    const diff=poidsHistory[0].val-poidsHistory[1].val;
+    if(diff<=-0.3){
+      return {msg:"Bien joué — "+Math.abs(diff).toFixed(1)+" kg en moins depuis ta dernière pesée. C'est la bonne direction. Continue comme ça, sans rien changer brutalement.",action:null};
+    }
+    if(poidsHistory.length>=3){
+      const a=poidsHistory[0].val,c=poidsHistory[2].val;
+      if(Math.abs(a-c)<0.5){
+        return {msg:"Ton poids semble stagner ces derniers jours. C'est normal, le corps avance par paliers. Vérifie que repas et eau restent réguliers — le reste suit avec un peu de patience.",action:null};
+      }
+    }
+    if(diff>=0.5){
+      return {msg:"Petite hausse depuis la dernière pesée — souvent de l'eau ou de la digestion, pas du gras. Le suivi se juge sur plusieurs semaines, pas un jour.",action:null};
+    }
+  }
+
+  // 9. Streak solide
+  if(streak>=3){
+    return {msg:"🔥 "+streak+" jours de suite sur l'appli. C'est exactement la régularité qui change tout sur le long terme. Garde le rythme.",action:null};
+  }
+
+  // 10. Journée parfaite
+  if(repDone===4 && exoDone===6 && waterMl>=target){
+    return {msg:"Journée parfaite : repas, séance et hydratation tous validés. C'est énorme. Profite du reste de la soirée. 🏆",action:null};
+  }
+
+  // 11. Soir, rien fait encore
+  if(hour>=18 && repDone===0 && exoDone===0){
+    return {msg:"La journée est presque finie et rien n'est encore coché — pas de souci, c'est jamais trop tard. Un repas structuré maintenant vaut mieux que rien.",action:{label:'🍽️ Voir mes repas',page:'nutrition'}};
+  }
+
+  // Fallback selon l'heure
+  if(hour<12) return {msg:"Bonne journée, Duncan. Une chose à la fois — repas, eau, et la séance si c'est le jour. Pas besoin d'être parfait, juste constant.",action:null};
+  if(hour<18) return {msg:"Ça avance bien. Check ton hydratation et tes repas du jour si pas encore fait.",action:null};
+  return {msg:"Bonne soirée. Cuisine fermée 2h avant de dormir, et garde un œil sur l'heure du coucher pour recaler le rythme.",action:null};
+}
+function renderCoach(){
+  const msgEl=document.getElementById('coach-msg');
+  const actEl=document.getElementById('coach-action');
+  if(!msgEl) return;
+  const advice=getCoachAdvice();
+  msgEl.textContent=advice.msg;
+  if(advice.action){
+    if(advice.action.fn) actEl.innerHTML=`<button class="coach-action-btn" onclick="${advice.action.fn}()">${advice.action.label}</button>`;
+    else actEl.innerHTML=`<button class="coach-action-btn" onclick="switchPage('${advice.action.page}')">${advice.action.label}</button>`;
+  } else {
+    actEl.innerHTML='';
+  }
+}
+
 function updateHome(){
+
   const repDone=repasState.filter(Boolean).length;
   const exoDone=exoState.filter(Boolean).length;
   document.getElementById('repas-mini').textContent=repDone+'/4';
@@ -1149,6 +1264,7 @@ function updateHome(){
     document.getElementById('poids-perdu-val').textContent=diff>0?'−'+diff.toFixed(1)+' kg perdus':'Point de départ';
   }
   renderReminders();
+  renderCoach();
 }
 
 // ── STREAK & SEMAINE ──────────────────────────────────────────
