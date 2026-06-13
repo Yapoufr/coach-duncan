@@ -838,7 +838,7 @@ function selectMood(v){
   });
 }
 function saveJournal(){
-  if(!selectedMood){alert('Choisis une humeur d\\'abord 🙂');return;}
+  if(!selectedMood){alert('Choisis une humeur d\'abord 🙂');return;}
   const note=document.getElementById('journal-note').value.trim();
   const now=new Date();
   journalHistory.unshift({
@@ -856,7 +856,7 @@ function saveJournal(){
 const MOOD_EMOJIS={1:'😞',2:'😕',3:'😐',4:'🙂',5:'😄'};
 function renderJournal(){
   const el=document.getElementById('journal-history');
-  if(journalHistory.length===0){el.innerHTML='<div style="font-size:14px;color:var(--text2);">Aucune entrée pour l\\'instant.</div>';return;}
+  if(journalHistory.length===0){el.innerHTML='<div style="font-size:14px;color:var(--text2);">Aucune entrée pour l\'instant.</div>';return;}
   el.innerHTML=journalHistory.slice(0,10).map(j=>`
     <div class="journal-entry">
       <div class="journal-date">${j.date}</div>
@@ -1024,7 +1024,7 @@ function renderInventaire(){
 
   // Liste de courses auto basée sur le stock bas
   if(bas.length===0){
-    coursesEl.innerHTML='<div style="font-size:14px;color:var(--text2);">Rien à racheter pour l\\'instant 👍</div>';
+    coursesEl.innerHTML='<div style="font-size:14px;color:var(--text2);">Rien à racheter pour l\'instant 👍</div>';
   } else {
     coursesEl.innerHTML=bas.map(i=>`
       <div class="inv-item">
