@@ -686,7 +686,9 @@ function updateAll() {
   reminderState.forEach((v,i) => { const el=document.getElementById('rem-'+i); if(el) el.classList.toggle('done',v); });
 }
 
-const semaine = Math.max(1, Math.ceil((new Date() - new Date('2025-06-13')) / (7*24*60*60*1000)));
+const startDate = localStorage.getItem('duncan_start') || new Date().toISOString().split('T')[0];
+if(!localStorage.getItem('duncan_start')) localStorage.setItem('duncan_start', startDate);
+const semaine = Math.max(1, Math.ceil((new Date() - new Date(startDate)) / (7*24*60*60*1000)));
 document.getElementById('semaine-num').textContent = semaine;
 
 if(navigator.standalone === false || !window.matchMedia('(display-mode: standalone)').matches) {
