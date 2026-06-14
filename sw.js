@@ -1,4 +1,4 @@
-const CACHE = 'coach-duncan-v2';
+const CACHE = 'coach-duncan-v3';
 const BASE = '/coach-duncan/';
 const FILES = [
   BASE,
